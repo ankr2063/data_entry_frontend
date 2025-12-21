@@ -1,6 +1,6 @@
 {
-  "name": "PWA App",
-  "short_name": "PWA",
+  "name": "Data Entry Forms",
+  "short_name": "Forms",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

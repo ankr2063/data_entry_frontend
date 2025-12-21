@@ -5,15 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2196F3">
     <meta name="description" content="PWA App">
-    <title>PWA App</title>
+    <title>Data Entry Forms</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
-        <h1>PWA App</h1>
-        <p>Welcome to your Progressive Web App</p>
-        <div id="status"></div>
+        <h1>Data Entry Forms</h1>
+        
+        <div class="form-actions">
+            <input type="url" id="formUrl" placeholder="Enter SharePoint URL">
+            <select id="formSelect" style="display:none;">
+                <option value="">Select form to update</option>
+            </select>
+            <button onclick="createForm()">Add Form</button>
+            <button id="updateBtn" onclick="toggleUpdateMode()">Update Form</button>
+        </div>
+
+        <div id="formsList"></div>
+        <div id="metadata"></div>
     </div>
     <script src="js/app.js"></script>
 </body>
