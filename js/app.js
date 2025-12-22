@@ -63,7 +63,7 @@ function displayForms(forms) {
       <h3>${form.name || 'Form ' + form.id}</h3>
       <div class="form-actions">
         <button class="btn-primary" onclick="getMetadata(${form.id})">View Details</button>
-        <button class="btn-secondary" onclick="generatePDF(${form.id})">Generate PDF</button>
+        <button class="btn-secondary" onclick="displayData(${form.id})">Display Data</button>
       </div>
     </div>`
   ).join('');
@@ -165,22 +165,22 @@ async function getMetadata(formId) {
   }
 }
 
-async function generatePDF(formId) {
+async function displayData(formId) {
   try {
     const response = await fetch(`${API_BASE}/${formId}/metadata/display/`);
     const metadata = await response.json();
     
     if (metadata.display_data.cells) {
-      createPDFFromMetadata(metadata.display_data, formId);
+      openDataInNewTab(metadata.display_data, formId);
     } else {
-      alert('No display data available for PDF generation');
+      alert('No display data available');
     }
   } catch (error) {
-    alert('Error generating PDF');
+    alert('Error loading display data');
   }
 }
 
-function createPDFFromMetadata(displayData, formId) {
+function openDataInNewTab(displayData, formId) {
   const { cells, merged_cells = [], dimensions } = displayData;
   const { rows: maxRows, columns: maxCols } = dimensions;
   
@@ -229,35 +229,24 @@ function createPDFFromMetadata(displayData, formId) {
   
   tableHTML += '</table>';
   
-  // Create print window
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
+  // Open HTML in new tab
+  const newWindow = window.open('', '_blank');
+  newWindow.document.write(`
     <html>
       <head>
         <title>Form ${formId} - Display Data</title>
         <style>
-          @page { size: landscape; margin: 0.5in; }
-          @media print {
-            body { margin: 0; }
-            table { page-break-inside: avoid; }
-          }
-          table { border-collapse: collapse; }
+          body { margin: 20px; font-family: Arial, sans-serif; }
+          table { border-collapse: collapse; width: 100%; }
         </style>
       </head>
       <body>
+        <h1>Form ${formId} - Display Data</h1>
         ${tableHTML}
-        <script>
-          window.onload = function() {
-            setTimeout(() => {
-              window.print();
-              window.close();
-            }, 500);
-          }
-        </script>
       </body>
     </html>
   `);
-  printWindow.document.close();
+  newWindow.document.close();
 }
 
 function getMergeInfo(row, col, merged_cells) {
@@ -273,7 +262,13 @@ function getMergeInfo(row, col, merged_cells) {
 }
 
 function createCellHTML(cell, mergeInfo) {
-  const value = cell.display_value || cell.value || '';
+  let value = cell.display_value || cell.value || '';
+  
+  // Keep cells empty if value contains &lt;pf_ pattern
+  if (value.includes('&lt;pf_')) {
+    value = '';
+  }
+  
   const styles = [];
   const isMerged = mergeInfo.rowspan > 1 || mergeInfo.colspan > 1;
   
@@ -363,18 +358,14 @@ function createCellHTML(cell, mergeInfo) {
   }
   
   if (!hasBorders) {
-    styles.push('border: 1px solid #d0d0d0');
+    styles.push('border: 1px solid #ccc');
   }
   
-  // Cell padding
-  styles.push('padding: 4px 8px');
-  
+  const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
   const rowspanAttr = mergeInfo.rowspan > 1 ? ` rowspan="${mergeInfo.rowspan}"` : '';
   const colspanAttr = mergeInfo.colspan > 1 ? ` colspan="${mergeInfo.colspan}"` : '';
-  const classAttr = isMerged ? ' class="merged-cell"' : '';
-  const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
   
-  return `<td${rowspanAttr}${colspanAttr}${classAttr}${styleAttr}>${value}</td>`;
+  return `<td${rowspanAttr}${colspanAttr}${styleAttr}>${value}</td>`;
 }
 
 // Close modals when clicking outside
