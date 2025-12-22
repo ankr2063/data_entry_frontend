@@ -2,6 +2,18 @@
 
 A minimal Progressive Web App built with vanilla JavaScript.
 
+## Development
+For live reload during development:
+```bash
+npm run start
+```
+
+## Production
+Serve with any HTTP server (HTTPS required for PWA):
+```bash
+npx serve
+```
+
 ## Structure
 ```
 ├── index.html          # Main HTML file
@@ -14,13 +26,8 @@ A minimal Progressive Web App built with vanilla JavaScript.
 └── icons/             # App icons (add 192x192 and 512x512 PNG files)
 ```
 
-## Run
-Serve with any HTTP server (HTTPS required for PWA):
-```bash
-npx serve
-```
-
 ## Features
 - Offline support
 - Installable
 - Responsive design
+- Live reload in development

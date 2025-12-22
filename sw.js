@@ -14,6 +14,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Skip API calls - let them go to network
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))

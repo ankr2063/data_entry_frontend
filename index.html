@@ -4,26 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2196F3">
-    <meta name="description" content="PWA App">
+    <meta name="description" content="Data Entry Forms">
     <title>Data Entry Forms</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Data Entry Forms</h1>
-        
-        <div class="form-actions">
-            <input type="url" id="formUrl" placeholder="Enter SharePoint URL">
-            <select id="formSelect" style="display:none;">
-                <option value="">Select form to update</option>
-            </select>
-            <button onclick="createForm()">Add Form</button>
-            <button id="updateBtn" onclick="toggleUpdateMode()">Update Form</button>
+        <header>
+            <h1>📋 Data Entry Forms</h1>
+            <div class="header-actions">
+                <button class="btn-primary" onclick="showAddForm()">+ Add New Form</button>
+                <button class="btn-secondary" onclick="showUpdateForm()">Update Form</button>
+            </div>
+        </header>
+
+        <div id="addFormModal" class="modal">
+            <div class="modal-content">
+                <h3>Add New Form</h3>
+                <input type="text" id="formName" placeholder="Enter form name">
+                <input type="url" id="newFormUrl" placeholder="Enter SharePoint URL">
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="createForm()">Create</button>
+                    <button class="btn-secondary" onclick="hideModal('addFormModal')">Cancel</button>
+                </div>
+            </div>
         </div>
 
-        <div id="formsList"></div>
-        <div id="metadata"></div>
+        <div id="updateFormModal" class="modal">
+            <div class="modal-content">
+                <h3>Update Form</h3>
+                <div class="search-container">
+                    <input type="text" id="searchForm" placeholder="Search forms..." oninput="filterForms()">
+                    <div id="formDropdown" class="dropdown"></div>
+                </div>
+                <input type="url" id="updateFormUrl" placeholder="Enter new SharePoint URL">
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="updateForm()" disabled id="updateBtn">Update</button>
+                    <button class="btn-secondary" onclick="hideModal('updateFormModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="forms-grid" id="formsList"></div>
+        
+        <div id="metadataModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Form Details</h3>
+                    <button class="close-btn" onclick="hideModal('metadataModal')">×</button>
+                </div>
+                <div id="metadata"></div>
+            </div>
+        </div>
     </div>
     <script src="js/app.js"></script>
 </body>
