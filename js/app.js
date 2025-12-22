@@ -1,6 +1,7 @@
 const API_BASE = 'http://localhost:8000/api/forms';
 let allForms = [];
 let selectedFormId = null;
+const persivApps = {};
 
 // Service Worker disabled during development
 // if ('serviceWorker' in navigator) {
@@ -8,6 +9,62 @@ let selectedFormId = null;
 //     .then(reg => console.log('Service Worker registered', reg))
 //     .catch(err => console.error('Service Worker registration failed', err));
 // }
+
+window.callAPI = (method, url, data, xhrFields = {}) => {
+    return new Observable((subscriber) => {
+        const isViz = /visualization\/$/i.test(url) || /loadSavedVisualization\/$/i.test(url) || /queryDB/i.test(url);
+        let jqXHR;
+        let released = false;
+
+        const releaseOnce = () => {
+            if (isViz && !released) {
+                released = true;
+                vizLimiter.release();
+            }
+        };
+        
+        const startAjax = () => {
+            jqXHR = $.ajax({
+                url,
+                method,
+                data,
+                success: (res) => {
+                    subscriber.next(res);
+                    releaseOnce();
+                    subscriber.complete?.();
+                },
+                error: (err) => {
+                    if (err.status === 0) {
+                        window.harbour.hideLoader();
+                        u.toast.showError({ msg: 'Could not communicate with the servers. Please try again after sometime.', direction: 'topRight' })
+                        return;
+                    }
+                    subscriber.error(err);
+                    releaseOnce();
+                    subscriber.complete?.();
+                },
+                xhrFields: {
+                    withCredentials: true,
+                    ...xhrFields
+                }
+            });
+        }
+
+        if (isViz && vizLimiter.getLimit() !== Infinity) {
+            vizLimiter.acquire().then(startAjax);
+        } else {
+            startAjax();
+        }
+
+        return () => {
+            if (jqXHR && jqXHR.readyState !== 4) {
+                try { jqXHR.abort(); } finally { releaseOnce(); }
+            } else {
+                releaseOnce();
+            }
+        };
+    });
+};
 
 loadForms();
 
@@ -62,8 +119,14 @@ function displayForms(forms) {
     `<div class="form-card">
       <h3>${form.name || 'Form ' + form.id}</h3>
       <div class="form-actions">
-        <button class="btn-primary" onclick="getMetadata(${form.id})">View Details</button>
+        <button class="btn-primary" onclick="getMetadata(${form.id})">+ New Entry</button>
         <button class="btn-secondary" onclick="displayData(${form.id})">Display Data</button>
+        <button class="btn-secondary p-3" onclick="persivApps.refreshFormAndDisplays(${form.id})">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+          </svg>
+        </button>
       </div>
     </div>`
   ).join('');
@@ -156,10 +219,9 @@ async function getMetadata(formId) {
   container.innerHTML = '<p class="loading">Loading metadata...</p>';
   
   try {
-    const response = await fetch(`${API_BASE}/${formId}/metadata/`);
+    const response = await fetch(`${API_BASE}/${formId}/metadata/entry`);
     const metadata = await response.json();
-    
-    container.innerHTML = `<pre>${JSON.stringify(metadata, null, 2)}</pre>`;
+    persivApps.buildForm(formId, metadata.entry_data.filter(a => a.name && a.ui_form_element));
   } catch (error) {
     container.innerHTML = '<p class="loading">Error loading metadata</p>';
   }
@@ -375,4 +437,159 @@ window.onclick = function(event) {
     const modal = document.getElementById(modalId);
     if (event.target === modal) hideModal(modalId);
   });
+}
+
+persivApps.formElementsHTML = {
+  date: (config, formElementIdx) => {
+    return `
+      <div class="mb-3">
+        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+        <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}">
+      </div>`;
+  },
+  number: (config, formElementIdx) => {
+    return `
+      <div class="mb-3">
+        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.min_value_allowed ? `max="${config.max_value_allowed}"` : ''} />
+      </div>`;
+  },
+  radio_button: (config, formElementIdx) => {
+    const allowed_data = config.allowed_data.split(',').map((d) => d.trim()).filter(a => a);
+    return `
+      <div class="mb-3">
+        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+        <div class="mb-3 d-flex">
+          ${
+            allowed_data.map((_allowed_data, _allowed_data_idx) => `
+              <div class="form-check me-4 d-flex align-items-center justify-content-center">
+                <input data-form-element="${formElementIdx}" class="form-check-input mb-0" type="radio" name="radioDefault_${formElementIdx}" id="ele_${formElementIdx}_${_allowed_data_idx}" value="${_allowed_data}">
+                <label class="form-check-label ms-2" for="ele_${formElementIdx}_${_allowed_data_idx}">
+                  ${_allowed_data}
+                </label>
+              </div>`).join('')
+          }
+        </div>
+      </div>`;
+  },
+  text: (config, formElementIdx) => {
+    return `
+      <div class="mb-3">
+        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+        <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}">
+      </div>`;
+  },
+  time: (config, formElementIdx) => {
+    return `
+      <div class="mb-3">
+        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+        <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}">
+      </div>`;
+  }
+};
+
+persivApps.buildForm = (formId, formConfig) => {
+  let numAccordions = 0;
+  const openAccordion = (accordionTitle) => {
+    numAccordions += 1;
+    return `
+        <div class="accordion mt-2">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc_${numAccordions}" aria-expanded="true" aria-controls="acc_${numAccordions}">
+                ${accordionTitle}
+              </button>
+            </h2>
+            <div id="acc_${numAccordions}" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+              <div class="accordion-body">
+    `;
+  }
+  const closeAccordion = () => {
+    return `
+              </div>
+            </div>
+          </div>
+        </div>
+    `;
+  }
+  let lastFormAccordion = '';
+  const formHTML = formConfig.map((formElement) => {
+    const formElementIdx = formElement.id;
+    let html = '';
+
+    // Open accordion?
+    if (lastFormAccordion !== formElement.accordion && formElement.accordion) {
+      console.log('open');
+      html += openAccordion(formElement.accordion);
+    }
+
+    if (!persivApps.formElementsHTML[formElement.ui_form_element]) {
+      html += `
+        <div class="mb-3">
+          <label for="form_element_${formElementIdx}" class="form-label">${formElement.name}</label>
+          <div>-- PENDING implementation for ${formElement.ui_form_element} --</div>
+        </div>`;
+    }
+    html += persivApps.formElementsHTML[formElement.ui_form_element](formElement, formElementIdx);
+
+    // Close accordion?
+    if (formElementIdx === formConfig.length || formConfig[formElementIdx].accordion !== formElement.accordion && formElement.accordion) {
+      html += closeAccordion();
+    }
+
+    lastFormAccordion = formElement.accordion;
+    return html;
+  }).join('');
+
+  document.getElementById('metadata').innerHTML = formHTML;
+  document.getElementById('saveFormValues').setAttribute('onclick', `persivApps.saveFormData(${formId})`);
+}
+
+persivApps.saveFormData = (form_id) => {
+  const formElements = document.querySelectorAll('#metadata [data-form-element]');
+  const form_values = {};
+  
+  Array.from(formElements).map((ele) => {
+    if (ele.type === 'radio') {
+      form_values[ele.dataset.formElement] = document.querySelector(`input[name="${ele.name}"]:checked`).value;
+    } else {
+      form_values[ele.dataset.formElement] = ele.value;
+    }
+  });
+
+  window.callAPI('POST', API_BASE + '/data/save/', { form_id, form_values: JSON.stringify(form_values) })
+    .subscribe((res) => {
+      console.log(res);
+    });  
+}
+
+persivApps.refreshFormAndDisplays = (form_id) => {
+  persivApps.showLoader('Updating form');
+  window.callAPI('POST', API_BASE + '/update/', { form_id })
+    .subscribe((res) => {
+      u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
+      persivApps.hideLoader();
+    });
+}
+
+persivApps.showLoader = (title = '', msg = '') => {
+    if ([...$('.harbour-loader-container')].length) {
+        $('.harbour-loader-container .title').html(title);
+        $('.harbour-loader-container .msg').html(msg);
+        return;
+    }
+    const alertBody = `
+        <div class="harbour-loader-container">
+            <div class="harbour-loader">
+                <span class="spinner-border" role="status"></span>
+                <div class="title mt-2">${title}</div>
+                <div class="msg">${msg}</div>
+            </div>
+        </div>
+    `;
+    $('body').append(alertBody);
+}
+
+persivApps.hideLoader = () => {
+    $('.harbour-loader-container').remove();
 }

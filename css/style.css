@@ -11,6 +11,50 @@ body {
   color: #333;
 }
 
+nav {
+  align-items: center;
+  background-color: white;
+  box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
+  display: flex;
+  height: 38px;
+  padding: 0 4px;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+
+nav button {
+  padding: 4px 10px !important;
+  font-size: 10px;
+}
+
+nav .navIcon {
+  cursor: pointer;
+  margin-left: 1rem;
+}
+
+nav img {
+  max-width: 100px;
+  margin-inline: 5px;
+  height: auto;
+  object-fit: contain;
+}
+
+nav #harbour-report-name {
+  margin-left: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+nav #report-summary {
+  width: 0vw;
+  text-align: right;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -111,7 +155,7 @@ h1 {
 
 .forms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 1.5rem;
 }
 
@@ -167,7 +211,7 @@ h1 {
   padding: 2rem;
   border-radius: 12px;
   min-width: 400px;
-  max-width: 90vw;
+  max-width: 75vw;
   max-height: 80vh;
   overflow-y: auto;
 }
@@ -189,15 +233,9 @@ h1 {
 
 .modal-content h3 {
   color: #333;
-  margin-bottom: 1rem;
 }
 
 .modal-content input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -242,3 +280,70 @@ pre {
   overflow-x: auto;
   font-size: 0.9rem;
 }
+
+#metadata {
+  height: 65vh;
+  overflow: auto;
+}
+
+.accordion-button.collapsed {
+  background-color: lightgray;
+}
+
+
+/*  Loader */
+.harbour-loader-container {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+  background: #00000030;
+  z-index: 9999999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.harbour-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: white;
+}
+
+.harbour-loader .title {
+  color: #000;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.harbour-loader .msg {
+  color: #333;
+  font-size: 12px;
+}
+
+@keyframes loading {
+  from {
+    transform: rotate(0);
+  } to {
+    transform: rotate(360deg);
+  }
+}
+
+.harbour-loader .fa-loader {
+  animation: loading linear 1s infinite;
+  font-size: 24px;
+  height: 30px;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
