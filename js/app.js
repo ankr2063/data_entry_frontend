@@ -303,7 +303,6 @@ function openDataInNewTab(displayData, formId) {
         </style>
       </head>
       <body>
-        <h1>Form ${formId} - Display Data</h1>
         ${tableHTML}
       </body>
     </html>
