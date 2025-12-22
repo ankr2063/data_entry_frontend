@@ -440,25 +440,31 @@ window.onclick = function(event) {
 }
 
 persivApps.formElementsHTML = {
+  label: (config, formElementIdx) => {
+    return `<label for="form_element_${formElementIdx}" class="form-label d-flex justify-content-between">
+              <div>${config.name}${config.optional === 'no' ? '<span style="color: red;" class="persivapp-mandatory-field">*</span>' : ''}</div>
+              ${config.min_value_allowed || config.max_value_allowed ? `<div style="color: #aaa">(${config.min_value_allowed ? `Min: ${config.min_value_allowed}` : ''}${config.min_value_allowed && config.max_value_allowed ? ', ' : ''}${config.max_value_allowed ? `Max: ${config.max_value_allowed}` : ''})</div>` : ''}
+            </label>`
+  },
   date: (config, formElementIdx) => {
     return `
       <div class="mb-3">
-        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+       ${persivApps.formElementsHTML.label(config, formElementIdx)}
         <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}">
       </div>`;
   },
   number: (config, formElementIdx) => {
     return `
       <div class="mb-3">
-        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
-        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.min_value_allowed ? `max="${config.max_value_allowed}"` : ''} />
+       ${persivApps.formElementsHTML.label(config, formElementIdx)}
+        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.max_value_allowed ? `max="${config.max_value_allowed}"` : ''} />
       </div>`;
   },
   radio_button: (config, formElementIdx) => {
     const allowed_data = config.allowed_data.split(',').map((d) => d.trim()).filter(a => a);
     return `
       <div class="mb-3">
-        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+       ${persivApps.formElementsHTML.label(config, formElementIdx)}
         <div class="mb-3 d-flex">
           ${
             allowed_data.map((_allowed_data, _allowed_data_idx) => `
@@ -475,14 +481,14 @@ persivApps.formElementsHTML = {
   text: (config, formElementIdx) => {
     return `
       <div class="mb-3">
-        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+       ${persivApps.formElementsHTML.label(config, formElementIdx)}
         <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}">
       </div>`;
   },
   time: (config, formElementIdx) => {
     return `
       <div class="mb-3">
-        <label for="form_element_${formElementIdx}" class="form-label">${config.name}</label>
+       ${persivApps.formElementsHTML.label(config, formElementIdx)}
         <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}">
       </div>`;
   }
@@ -519,7 +525,6 @@ persivApps.buildForm = (formId, formConfig) => {
 
     // Open accordion?
     if (lastFormAccordion !== formElement.accordion && formElement.accordion) {
-      console.log('open');
       html += openAccordion(formElement.accordion);
     }
 
@@ -549,17 +554,31 @@ persivApps.saveFormData = (form_id) => {
   const formElements = document.querySelectorAll('#metadata [data-form-element]');
   const form_values = {};
   
+  let continueSavingForm = true;
   Array.from(formElements).map((ele) => {
     if (ele.type === 'radio') {
-      form_values[ele.dataset.formElement] = document.querySelector(`input[name="${ele.name}"]:checked`).value;
+      form_values[ele.dataset.formElement] = document.querySelector(`input[name="${ele.name}"]:checked`)?.value;
     } else {
       form_values[ele.dataset.formElement] = ele.value;
     }
+
+    if ($(ele).parent('label .persivapp-mandatory-field')) {
+      if (!form_values[ele.dataset.formElement]) {
+        continueSavingForm = false;
+      }
+    }
   });
 
+  if (!continueSavingForm) {
+    u.toast.showWarning({ msg: 'Add all mandatory fields.', direction: 'topRight' });
+    return;
+  }
+
+  persivApps.showLoader('Saving form');
   window.callAPI('POST', API_BASE + '/data/save/', { form_id, form_values: JSON.stringify(form_values) })
     .subscribe((res) => {
-      console.log(res);
+      persivApps.hideLoader();
+      u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
     });  
 }
 
@@ -567,8 +586,8 @@ persivApps.refreshFormAndDisplays = (form_id) => {
   persivApps.showLoader('Updating form');
   window.callAPI('POST', API_BASE + '/update/', { form_id })
     .subscribe((res) => {
-      u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
       persivApps.hideLoader();
+      u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
     });
 }
 
