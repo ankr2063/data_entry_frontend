@@ -325,8 +325,8 @@ function getMergeInfo(row, col, merged_cells) {
 function createCellHTML(cell, mergeInfo) {
   let value = cell.display_value || cell.value || '';
   
-  // Keep cells empty if value contains &lt;pf_ pattern
-  if (value.includes('&lt;pf_')) {
+  // Keep cells empty if value contains &lt;pa_ pattern
+  if (value.includes('&lt;pa_')) {
     value = '';
   }
   
