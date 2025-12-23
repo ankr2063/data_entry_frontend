@@ -95,11 +95,9 @@ async function loadForms() {
   try {
     const response = await fetch(API_BASE);
     const data = await response.json();
-    console.log('API Response:', data);
     
     // Handle different response formats
     allForms = Array.isArray(data) ? data : (data.results || data.forms || []);
-    console.log('Forms array:', allForms);
     
     displayForms(allForms);
   } catch (error) {
@@ -117,10 +115,10 @@ function displayForms(forms) {
   
   container.innerHTML = forms.map(form => 
     `<div class="form-card">
-      <h3>${form.name || 'Form ' + form.id}</h3>
+      <h3>${form.form_name || 'Form ' + form.id}</h3>
       <div class="form-actions">
         <button class="btn-primary" onclick="getMetadata(${form.id})">+ New Entry</button>
-        <button class="btn-secondary" onclick="displayData(${form.id})">Display Data</button>
+        <button class="btn-secondary" onclick="persivApps.displayFormEntries(${form.id})">Form Entries</button>
         <button class="btn-secondary p-3" onclick="persivApps.refreshFormAndDisplays(${form.id})">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -174,7 +172,7 @@ async function createForm() {
     const response = await fetch(`${API_BASE}/create/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ sharepoint_url: url, form_name: name })
     });
     
     if (response.ok) {
@@ -227,13 +225,13 @@ async function getMetadata(formId) {
   }
 }
 
-async function displayData(formId) {
+persivApps.displayData = async (formDataId) => {
   try {
-    const response = await fetch(`${API_BASE}/${formId}/metadata/display/`);
+    const response = await fetch(`${API_BASE}/data/${formDataId}/filled/`);
     const metadata = await response.json();
     
     if (metadata.display_data.cells) {
-      openDataInNewTab(metadata.display_data, formId);
+      openDataInNewTab(metadata.display_data);
     } else {
       alert('No display data available');
     }
@@ -242,7 +240,7 @@ async function displayData(formId) {
   }
 }
 
-function openDataInNewTab(displayData, formId) {
+function openDataInNewTab(displayData) {
   const { cells, merged_cells = [], dimensions } = displayData;
   const { rows: maxRows, columns: maxCols } = dimensions;
   
@@ -296,7 +294,7 @@ function openDataInNewTab(displayData, formId) {
   newWindow.document.write(`
     <html>
       <head>
-        <title>Form ${formId} - Display Data</title>
+        <title>Form Display</title>
         <style>
           body { margin: 20px; font-family: Arial, sans-serif; }
           table { border-collapse: collapse; width: 100%; }
@@ -610,4 +608,61 @@ persivApps.showLoader = (title = '', msg = '') => {
 
 persivApps.hideLoader = () => {
     $('.harbour-loader-container').remove();
+}
+
+function renderTable(columnMap, rawRows, container) {
+  const columns = Object.entries(columnMap)
+    .map(([i, l]) => ({ i: Number(i), l }))
+    .sort((a, b) => a.i - b.i);
+
+  const rows = rawRows.map(r => ({
+    id: r.id,
+    v: JSON.parse(r.values)
+  }));
+
+  const table = document.createElement("table");
+  table.classList = ['table'];
+  table.border = "1";
+
+  // header
+  const thead = table.createTHead();
+  const hrow = thead.insertRow();
+  hrow.insertCell().textContent = "ID";
+  columns.forEach(c => hrow.insertCell().textContent = c.l);
+
+  // body
+  const tbody = table.createTBody();
+  rows.forEach(r => {
+    const tr = tbody.insertRow();
+    tr.insertCell().textContent = r.id;
+    tr.insertCell().innerHTML = `<button onclick="persivApps.displayData(${r.id})" class="btn btn-primary">Display</button>`;
+    columns.forEach(c => {
+      tr.insertCell().textContent = r.v[c.i] ?? "";
+    });
+  });
+
+  container.appendChild(table);
+}
+
+persivApps.displayFormEntries = async (formId) => {
+  persivApps.showLoader('Fetching entries...');
+  window.callAPI('GET', API_BASE + `/${formId}/entries/`)
+    .subscribe((res) => {
+      persivApps.hideLoader();
+      u.modal.openModal({
+          id: "formEntries",
+          height: '80vh',
+          width: '80vw',
+          headerHeight: '0',
+          closeOnBackgroundClick: false,
+          body: `
+            <div class="m-2">
+                <div class="mb-2">Form Entries</div>
+                <div id="modalBody" class="m-2">
+                </div>
+            </div>
+          `,
+      });
+      renderTable(res.columns, res.entries, $('#formEntries #modalBody')[0]);
+    });
 }
