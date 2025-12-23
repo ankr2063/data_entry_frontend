@@ -441,7 +441,7 @@ window.onclick = function(event) {
 persivApps.formElementsHTML = {
   label: (config, formElementIdx) => {
     return `<label for="form_element_${formElementIdx}" class="form-label d-flex justify-content-between">
-              <div>${config.name}${config.optional === 'no' ? '<span style="color: red;" class="persivapp-mandatory-field">*</span>' : ''}</div>
+              <div>${config.name}${!config.optional ? '<span style="color: red;" class="persivapp-mandatory-field">*</span>' : ''}</div>
               ${config.min_value_allowed || config.max_value_allowed ? `<div style="color: #aaa">(${config.min_value_allowed ? `Min: ${config.min_value_allowed}` : ''}${config.min_value_allowed && config.max_value_allowed ? ', ' : ''}${config.max_value_allowed ? `Max: ${config.max_value_allowed}` : ''})</div>` : ''}
             </label>`
   },
@@ -561,7 +561,7 @@ persivApps.saveFormData = (form_id) => {
       form_values[ele.dataset.formElement] = ele.value;
     }
 
-    if ($(ele).parent('label .persivapp-mandatory-field')) {
+    if ($(ele).closest('label').find('.persivapp-mandatory-field').length > 0) {
       if (!form_values[ele.dataset.formElement]) {
         continueSavingForm = false;
       }
