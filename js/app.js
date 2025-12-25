@@ -2,6 +2,7 @@ const API_BASE = 'http://localhost:8000/api';
 let allForms = [];
 let selectedFormId = null;
 const persivApps = {};
+persivApps.currentlyWorkingOnForm = [];
 
 // Service Worker disabled during development
 // if ('serviceWorker' in navigator) {
@@ -31,6 +32,8 @@ window.onload = (e) => {
     } else {
         persivApps.showLoginScreen();
     }
+    const loadJSFiles = ['/customizations/solex/forms.js'];
+    persivApps.dynamicallyLoadJSFiles(loadJSFiles);
 }
 
 persivApps.initApp = () => {
@@ -596,6 +599,10 @@ window.onclick = function(event) {
   });
 }
 
+persivApps.dispatchAction = (action, data) => {
+    state.dispatchAction(action, data);
+}
+
 persivApps.formElementsHTML = {
   label: (config, formElementIdx) => {
     return `<label for="form_element_${formElementIdx}" class="form-label d-flex justify-content-between">
@@ -604,17 +611,19 @@ persivApps.formElementsHTML = {
             </label>`
   },
   date: (config, formElementIdx) => {
+    const eventData = JSON.stringify({ formId: persivApps.currentlyWorkingOnForm.at(-1), formFieldIdx: formElementIdx, config }).replace(/"/g, '&quot;');
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
+        <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'} onblur="persivApps.dispatchAction('FORM_FIELD_BLUR', '${eventData}')" onkeyup="persivApps.dispatchAction('FORM_FIELD_KEYUP', '${eventData}')" onfocus="persivApps.dispatchAction('FORM_FIELD_FOCUS', '${eventData}')">
       </div>`;
   },
   number: (config, formElementIdx) => {
+    const eventData = JSON.stringify({ formId: persivApps.currentlyWorkingOnForm.at(-1), formFieldIdx: formElementIdx, config }).replace(/"/g, '&quot;');
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.max_value_allowed ? `max="${config.max_value_allowed}"` : ''} ${config.isDisabled && 'disabled'} />
+        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.max_value_allowed ? `max="${config.max_value_allowed}"` : ''} ${config.isDisabled && 'disabled'} onblur="persivApps.dispatchAction('FORM_FIELD_BLUR', '${eventData}')" onkeyup="persivApps.dispatchAction('FORM_FIELD_KEYUP', '${eventData}')" onfocus="persivApps.dispatchAction('FORM_FIELD_FOCUS', '${eventData}')" />
       </div>`;
   },
   radio_button: (config, formElementIdx) => {
@@ -636,23 +645,26 @@ persivApps.formElementsHTML = {
       </div>`;
   },
   text: (config, formElementIdx) => {
+    const eventData = JSON.stringify({ formId: persivApps.currentlyWorkingOnForm.at(-1), formFieldIdx: formElementIdx, config }).replace(/"/g, '&quot;');
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
+        <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'} onblur="persivApps.dispatchAction('FORM_FIELD_BLUR', '${eventData}')" onkeyup="persivApps.dispatchAction('FORM_FIELD_KEYUP', '${eventData}')" onfocus="persivApps.dispatchAction('FORM_FIELD_FOCUS', '${eventData}')">
       </div>`;
   },
   time: (config, formElementIdx) => {
+    const eventData = JSON.stringify({ formId: persivApps.currentlyWorkingOnForm.at(-1), formFieldIdx: formElementIdx, config }).replace(/"/g, '&quot;');
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
+        <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'} onblur="persivApps.dispatchAction('FORM_FIELD_BLUR', '${eventData}')" onkeyup="persivApps.dispatchAction('FORM_FIELD_KEYUP', '${eventData}')" onfocus="persivApps.dispatchAction('FORM_FIELD_FOCUS', '${eventData}')">
       </div>`;
   }
 };
 
 persivApps.buildForm = (formId, formName, formConfig) => {
   let numAccordions = 0;
+  persivApps.currentlyWorkingOnForm.push({ formId, formName });
   const openAccordion = (accordionTitle) => {
     numAccordions += 1;
     return `
@@ -711,6 +723,9 @@ persivApps.buildForm = (formId, formName, formConfig) => {
 
   document.getElementById('metadata').innerHTML = formHTML;
   document.getElementById('saveFormValues').setAttribute('onclick', `persivApps.saveFormData(${formId}, '${formName}')`);
+
+  const firstFormFieldIndex = formConfig.filter((config) => !config.hide)[0].id;
+  $(`[data-form-element="${firstFormFieldIndex}"]`).focus();
 }
 
 persivApps.saveFormData = (form_id, formName) => {
@@ -746,6 +761,8 @@ persivApps.saveFormData = (form_id, formName) => {
 
       // Reload saved data
       persivApps.displayFormEntries(form_id, formName)
+
+      persivApps.currentlyWorkingOnForm.pop();
     });  
 }
 
@@ -858,3 +875,25 @@ persivApps.displayFormEntries = (formId, form_name) => {
       persivApps.renderTable(res.columns, res.entries, '#mainContent #formEntries');
     });
 }
+
+persivApps.dynamicallyLoadJSFiles = (files) => {
+  if (!files.length) {
+    return new Promise((resolve) => {
+      resolve();
+    });
+  }
+  return Promise.all(
+    files.map(src => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = src + '?v=' + $('#persivApps_current_version').html();
+
+        script.onload = () => resolve(src);
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+
+        document.head.appendChild(script);
+      });
+    })
+  );
+};
