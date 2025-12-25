@@ -135,6 +135,7 @@ persivApps.authenticateUser = () => {
                 id: result.user_id,
                 accessToken: window.accessToken
               }));
+              $('#userDetails').removeClass('d-none').html(`<i class="bi bi-person me-2" />${username}`)
               persivApps.initApp();
             },
             () => {
@@ -783,11 +784,11 @@ persivApps.renderTable = (columnMap, rawRows, container) => {
   const _columns = Object.entries(columnMap)
     .map(([i, l]) => ({ i: Number(i), l }))
     .sort((a, b) => a.i - b.i);
-  const columns = _columns.map(({ l }) => ({name: `.${l}`}))
+  const columns = [{name: '.Action'}, ..._columns.map(({ l }) => ({name: `.${l}`}))]
 
   const rows = rawRows.map(r => {
       const rowValues = JSON.parse(r.values);
-      const row = _columns.map(({ i }) => rowValues[i]);
+      const row = [`<div><i onclick='persivApps.displayData(${r.id})' class='bi bi-eye me-2'></i><i onclick='persivApps.displayData(${r.id}, true)' class='bi bi-printer me-2'></i></div>`, ..._columns.map(({ i }) => rowValues[i])];
       return row;
   });
 
