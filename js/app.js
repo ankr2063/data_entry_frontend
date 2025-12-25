@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000/api/forms';
+const API_BASE = 'http://localhost:8000/api';
 let allForms = [];
 let selectedFormId = null;
 const persivApps = {};
@@ -9,6 +9,37 @@ const persivApps = {};
 //     .then(reg => console.log('Service Worker registered', reg))
 //     .catch(err => console.error('Service Worker registration failed', err));
 // }
+
+window.loggedInUser_ID = () => {
+    let user = sessionStorage.getItem('user') || '{}';
+    user = user === 'undefined' ? '{}' : user;
+    user = JSON.parse(user);
+    return user.id;
+}
+
+window.loggedInUser_accessToken = () => {
+    let user = sessionStorage.getItem('user') || '{}';
+    user = user === 'undefined' ? '{}' : user;
+    user = JSON.parse(user);
+    return user.accessToken;
+}
+
+window.onload = (e) => {
+    window.accessToken = loggedInUser_accessToken();
+    if (loggedInUser_ID()) {
+        persivApps.initApp();
+    } else {
+        persivApps.showLoginScreen();
+    }
+}
+
+persivApps.initApp = () => {
+    $('main').html(`
+      <div id="sidebar"></div>
+      <div id="mainContent"><center class="mt-3 d-flex align-items-center justify-content-center"><h4 class="d-flex align-items-baseline">Welcome to <img src="resources/images/app/persivApp.png" class="ms-3" style="max-height: 20px;" alt="PersivX logo"></h4></center></div>
+    `);
+    persivApps.loadForms();
+}
 
 window.callAPI = (method, url, data, xhrFields = {}) => {
     return new Observable((subscriber) => {
@@ -22,12 +53,22 @@ window.callAPI = (method, url, data, xhrFields = {}) => {
                 vizLimiter.release();
             }
         };
-        
+
+        let headers = {
+            Authorization: `Bearer ${window.accessToken}`, // <-- add this
+        }
+
+        if (url.includes('users/login/')) {
+          headers = undefined;
+        }
+
+        // window.accessToken;
         const startAjax = () => {
             jqXHR = $.ajax({
                 url,
                 method,
                 data,
+                headers,
                 success: (res) => {
                     subscriber.next(res);
                     releaseOnce();
@@ -35,7 +76,7 @@ window.callAPI = (method, url, data, xhrFields = {}) => {
                 },
                 error: (err) => {
                     if (err.status === 0) {
-                        window.harbour.hideLoader();
+                        persivApps.hideLoader();
                         u.toast.showError({ msg: 'Could not communicate with the servers. Please try again after sometime.', direction: 'topRight' })
                         return;
                     }
@@ -66,9 +107,111 @@ window.callAPI = (method, url, data, xhrFields = {}) => {
     });
 };
 
-loadForms();
+persivApps.authenticateUser = () => {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
 
-function showAddForm() {
+    let organization = params.get('org') || undefined;
+    if ($('#loginToAnOrg') && !$('#loginToAnOrg').hasClass('d-none')) {
+        organization = $('#organization').val();
+    }
+    const username = $('#username').val().trim();
+    const password = $('#password').val();
+    
+    if (!username) {
+        u.toast.showError({ msg: 'Username cannot be left empty', direction: 'topRight' });
+        return;
+    } else if (!$('#password').val().trim() && !$('.password-reset-mode').length) {
+        u.toast.showError({ msg: 'Password cannot be left empty', direction: 'topRight' });
+        return;
+    }
+    $('#password').val('......................................................................................');
+
+    window.callAPI('POST', `${API_BASE}/users/login/`, { username, password, organization })
+        .subscribe(
+            (result) => {
+              window.accessToken = result.access_token;
+              sessionStorage.setItem('user', JSON.stringify({
+                id: result.user_id,
+                accessToken: window.accessToken
+              }));
+              persivApps.initApp();
+            },
+            () => {
+                u.toast.showError({msg: 'Could not verify credentials. Please try again after sometime.', direction: 'topRight'});
+                $('#password').val('');
+            }
+        );
+}
+
+persivApps.showLoginScreen = (showSecuredDashboardMsg = true) => {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    const loadingDashboard = showSecuredDashboardMsg && (window.location.href.includes('test-embed') || window.location.href.includes('dashboard') || window.location.href.includes('visualization'));
+    const organization = ['null', null, undefined, 'undefined'].includes(params.get('org')) ? false : params.get('org');
+
+    $('main').css('height', '100%').html(`
+        <div class="d-flex h-100" id="loginScreen">
+            <div id="loginContainer">
+                <div>
+                    <img class="logo" src="resources/images/app/persivApp.png"></img>
+                </div>
+                ${ !loadingDashboard 
+                    ? '' 
+                    : `
+                        <div style="margin-top: 65px; display: flex; align-items: center; ">
+                            <div style="margin-right: 15px; color: #094979; padding: 10px; border-radius: 50%; background: #e8f2f9;">
+                                <i class="bi bi-lock"></i>
+                            </div>
+                            <div>
+                                <div style="color: #094979; font-size: 18px;">This is a secured dashboard.</div>
+                                <div style="margin-top: 5px; font-size: 12px;">To continue, please verify your identity.</div>
+                            </div>
+                        </div>
+                    `}
+                <div ${ !loadingDashboard ? `style="margin-top: 75px;"` : 'class="mt-4"'}>
+                    ${ !loadingDashboard ? `<div id="loginToAnOrg" class="${organization ? '' : 'd-none' }">
+                        <label for="organization">Organization</label>
+                        <div><input type="text" id="organization" class="w-100" value="${organization || ''}" placeholder="Personal Login" ${organization ? 'disabled' : ''} /></div>
+                    </div>` : '' }
+                    <div id="emailId" ${ organization ? `class="mt-3"` : `` }>
+                        <label for="username">Email / Username</label>
+                        <div><input type="text" id="username" class="w-100" placeholder="" autocomplete="off" /></div>
+                    </div>
+                    <div class="mt-3">
+                        <label for="password">Password</label>
+                        <div><input type="password" id="password" class="w-100" placeholder="" /></div>
+                    </div>
+                    <div class="mt-4">
+                        <button id="loginButton" onclick="persivApps.authenticateUser()">LOGIN</button>
+                    ${ !loadingDashboard ? `
+                            <a style="color: #888; font-size: 12px;" class="w-100 d-block text-center cursor-pointer mt-3 ${organization ? '' : 'd-none'}" onclick="persivApps.personalLogin()" id="loginToPpersonalAccount">Back to personal login</a>
+                            <a style="color: #888; font-size: 12px;" class="w-100 d-block text-center cursor-pointer mt-3 ${organization ? 'd-none' : ''}" onclick="persivApps.loginToAnOrg()" id="loginToAnOrganization">Login to an organization</a>
+                        `: '' }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+}
+
+
+persivApps.loginToAnOrg = () => {
+    $('#emailId').css('margin-top', '0').addClass('mt-3');
+    $('#loginToAnOrg').removeClass('d-none');
+    $('#loginToAnOrganization').addClass('d-none');
+    $('#loginToPpersonalAccount').removeClass('d-none');
+}
+
+persivApps.personalLogin = () => {
+    // $('#emailId').css('margin-top', '75px').removeClass('mt-3');
+    $('#loginToAnOrg').addClass('d-none');
+    $('#loginToAnOrganization').removeClass('d-none');
+    $('#loginToPpersonalAccount').addClass('d-none');
+}
+
+
+persivApps.showAddForm = () => {
   document.getElementById('addFormModal').style.display = 'block';
 }
 
@@ -76,12 +219,12 @@ function showUpdateForm() {
   document.getElementById('updateFormModal').style.display = 'block';
 }
 
-function hideModal(modalId) {
+persivApps.hideModal = (modalId) => {
   document.getElementById(modalId).style.display = 'none';
-  clearForm();
+  persivApps.clearForm();
 }
 
-function clearForm() {
+persivApps.clearForm = () => {
   document.getElementById('formName').value = '';
   document.getElementById('newFormUrl').value = '';
   document.getElementById('updateFormUrl').value = '';
@@ -91,43 +234,42 @@ function clearForm() {
   document.getElementById('updateBtn').disabled = true;
 }
 
-async function loadForms() {
+persivApps.loadForms = async () => {
   try {
-    const response = await fetch(API_BASE);
-    const data = await response.json();
-    
-    // Handle different response formats
-    allForms = Array.isArray(data) ? data : (data.results || data.forms || []);
-    
-    displayForms(allForms);
+    window.callAPI('GET', API_BASE + '/forms')
+      .subscribe((response) => {
+        const data = response.forms;
+
+        allForms = Array.isArray(data) ? data : (data.results || data.forms || []);        
+        persivApps.displayForms(allForms);
+      });
   } catch (error) {
     console.error('Error loading forms:', error);
     document.getElementById('formsList').innerHTML = '<div class="loading">Error loading forms</div>';
   }
 }
 
-function displayForms(forms) {
-  const container = document.getElementById('formsList');
+persivApps.displayForms = (forms) => {
+  $('main #sidebar').html(`
+      <button class="btn btn-primary w-100" onclick="persivApps.showAddForm()">+ Add New Form</button>
+      <div class="mt-3"><small>Forms</small></div>
+      <div id="formsList"></div>
+  `);
+  const container = $('#formsList');
   if (!forms.length) {
-    container.innerHTML = '<div class="loading">No forms found</div>';
+    container.html('<div class="loading">No forms found</div>');
     return;
   }
-  
-  container.innerHTML = forms.map(form => 
-    `<div class="form-card">
-      <h3>${form.form_name || 'Form ' + form.id}</h3>
-      <div class="form-actions">
-        <button class="btn-primary" onclick="getMetadata(${form.id})">+ New Entry</button>
-        <button class="btn-secondary" onclick="persivApps.displayFormEntries(${form.id})">Form Entries</button>
-        <button class="btn-secondary p-3" onclick="persivApps.refreshFormAndDisplays(${form.id})">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
-            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
-          </svg>
-        </button>
-      </div>
-    </div>`
-  ).join('');
+
+  container.html(`
+    ${
+        forms.map(form => 
+          `<div class="form-card" onclick="persivApps.displayFormEntries(${form.id}, '${form.form_name}')">
+            <span>${form.form_name || 'Form ' + form.id}</span>
+          </div>`
+        ).join('')
+    }
+  `);
 }
 
 function filterForms() {
@@ -162,25 +304,22 @@ function selectForm(id, name) {
   document.getElementById('updateBtn').disabled = false;
 }
 
-async function createForm() {
+persivApps.createForm = async () => {
   const name = document.getElementById('formName').value;
   const url = document.getElementById('newFormUrl').value;
   
   if (!name || !url) return alert('Please enter both name and URL');
   
   try {
-    const response = await fetch(`${API_BASE}/create/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sharepoint_url: url, form_name: name })
-    });
-    
-    if (response.ok) {
-      hideModal('addFormModal');
-      loadForms();
-    } else {
-      alert('Error creating form');
-    }
+    window.callAPI('POST', `${API_BASE}/forms/create/`, { sharepoint_url: url, form_name: name })
+      .subscribe((response) => {
+        if (response.form_id) {
+          persivApps.hideModal('addFormModal');
+          persivApps.loadForms();
+        } else {
+          alert('Error creating form');
+        }
+      });
   } catch (error) {
     alert('Error creating form');
   }
@@ -192,15 +331,15 @@ async function updateForm() {
   if (!selectedFormId || !url) return alert('Please select a form and enter URL');
   
   try {
-    const response = await fetch(`${API_BASE}/update/`, {
+    const response = await fetch(`${API_BASE}/forms/update/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, form_id: selectedFormId })
     });
     
     if (response.ok) {
-      hideModal('updateFormModal');
-      loadForms();
+      persivApps.hideModal('updateFormModal');
+      persivApps.loadForms();
     } else {
       alert('Error updating form');
     }
@@ -209,7 +348,7 @@ async function updateForm() {
   }
 }
 
-async function getMetadata(formId) {
+persivApps.getMetadata = async (formId) => {
   const modal = document.getElementById('metadataModal');
   const container = document.getElementById('metadata');
   
@@ -217,30 +356,33 @@ async function getMetadata(formId) {
   container.innerHTML = '<p class="loading">Loading metadata...</p>';
   
   try {
-    const response = await fetch(`${API_BASE}/${formId}/metadata/entry`);
-    const metadata = await response.json();
-    persivApps.buildForm(formId, metadata.entry_data.filter(a => a.name && a.ui_form_element));
+    window.callAPI('GET', `${API_BASE}/forms/${formId}/metadata/entry`)
+      .subscribe((response) => {
+          const metadata = response;
+          console.log(metadata);
+          persivApps.buildForm(formId, metadata.entry_data.filter(a => a.name && a.ui_form_element));  
+      });
   } catch (error) {
     container.innerHTML = '<p class="loading">Error loading metadata</p>';
   }
 }
 
-persivApps.displayData = async (formDataId) => {
+persivApps.displayData = async (formDataId, print) => {
   try {
-    const response = await fetch(`${API_BASE}/data/${formDataId}/filled/`);
-    const metadata = await response.json();
-    
-    if (metadata.display_data.cells) {
-      openDataInNewTab(metadata.display_data);
-    } else {
-      alert('No display data available');
-    }
+    window.callAPI('GET', `${API_BASE}/forms/data/${formDataId}/filled/`).subscribe((response) => {
+      const metadata = response;
+      if (metadata.display_data.cells) {
+        persivApps.openDataInNewTab(metadata.display_data, print);
+      } else {
+        alert('No display data available');
+      }
+    });
   } catch (error) {
     alert('Error loading display data');
   }
 }
 
-function openDataInNewTab(displayData) {
+persivApps.openDataInNewTab = (displayData, print) => {
   const { cells, merged_cells = [], dimensions } = displayData;
   const { rows: maxRows, columns: maxCols } = dimensions;
   
@@ -288,10 +430,7 @@ function openDataInNewTab(displayData) {
   }
   
   tableHTML += '</table>';
-  
-  // Open HTML in new tab
-  const newWindow = window.open('', '_blank');
-  newWindow.document.write(`
+  const html = `
     <html>
       <head>
         <title>Form Display</title>
@@ -303,9 +442,29 @@ function openDataInNewTab(displayData) {
       <body>
         ${tableHTML}
       </body>
+      <script>${print && 'window.print()'}</script>
     </html>
-  `);
-  newWindow.document.close();
+  `
+
+  if (print) {
+    // Open HTML in new tab
+    const newWindow = window.open('', '_blank');
+    newWindow.document.write(html);
+    newWindow.document.close();
+  } else {
+    u.modal.openModal({
+        id: "displayModal",
+        height: '90vh',
+        width: '90vw',
+        header: '',
+        headerHeight: '0px',
+        body: html,
+        closeOnBackgroundClick: false,
+        headerBackgroundColor: 'white',
+        footerBackgroundColor: 'white',
+        additionalClass: 'no-animation'
+    });
+  }
 }
 
 function getMergeInfo(row, col, merged_cells) {
@@ -432,7 +591,7 @@ window.onclick = function(event) {
   const modals = ['addFormModal', 'updateFormModal', 'metadataModal'];
   modals.forEach(modalId => {
     const modal = document.getElementById(modalId);
-    if (event.target === modal) hideModal(modalId);
+    if (event.target === modal) persivApps.hideModal(modalId);
   });
 }
 
@@ -572,16 +731,17 @@ persivApps.saveFormData = (form_id) => {
   }
 
   persivApps.showLoader('Saving form');
-  window.callAPI('POST', API_BASE + '/data/save/', { form_id, form_values: JSON.stringify(form_values) })
+  window.callAPI('POST', API_BASE + '/forms/data/save/', { form_id, form_values: JSON.stringify(form_values) })
     .subscribe((res) => {
       persivApps.hideLoader();
       u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
+      persivApps.hideModal('metadataModal');
     });  
 }
 
 persivApps.refreshFormAndDisplays = (form_id) => {
   persivApps.showLoader('Updating form');
-  window.callAPI('POST', API_BASE + '/update/', { form_id })
+  window.callAPI('POST', API_BASE + '/forms/update/', { form_id })
     .subscribe((res) => {
       persivApps.hideLoader();
       u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
@@ -627,6 +787,7 @@ function renderTable(columnMap, rawRows, container) {
   // header
   const thead = table.createTHead();
   const hrow = thead.insertRow();
+  hrow.insertCell().textContent = " ";
   hrow.insertCell().textContent = "ID";
   columns.forEach(c => hrow.insertCell().textContent = c.l);
 
@@ -634,8 +795,12 @@ function renderTable(columnMap, rawRows, container) {
   const tbody = table.createTBody();
   rows.forEach(r => {
     const tr = tbody.insertRow();
+    tr.insertCell().innerHTML = `
+    <div style="width: 100px;">
+      <i onclick="persivApps.displayData(${r.id})" class="bi bi-eye me-2"></i>
+      <i onclick="persivApps.displayData(${r.id}, true)" class="bi bi-printer me-2"></i>
+    </div>`;
     tr.insertCell().textContent = r.id;
-    tr.insertCell().innerHTML = `<button onclick="persivApps.displayData(${r.id})" class="btn btn-primary">Display</button>`;
     columns.forEach(c => {
       tr.insertCell().textContent = r.v[c.i] ?? "";
     });
@@ -644,25 +809,28 @@ function renderTable(columnMap, rawRows, container) {
   container.appendChild(table);
 }
 
-persivApps.displayFormEntries = async (formId) => {
+persivApps.displayFormEntries = (formId, form_name) => {
   persivApps.showLoader('Fetching entries...');
-  window.callAPI('GET', API_BASE + `/${formId}/entries/`)
+  window.callAPI('GET', API_BASE + `/forms/${formId}/entries/`)
     .subscribe((res) => {
       persivApps.hideLoader();
-      u.modal.openModal({
-          id: "formEntries",
-          height: '80vh',
-          width: '80vw',
-          headerHeight: '0',
-          closeOnBackgroundClick: false,
-          body: `
-            <div class="m-2">
-                <div class="mb-2">Form Entries</div>
-                <div id="modalBody" class="m-2">
-                </div>
+      $('#mainContent').html(`
+          <div id="formControls">
+            <div class="title">
+              Entries: ${form_name}
             </div>
-          `,
-      });
-      renderTable(res.columns, res.entries, $('#formEntries #modalBody')[0]);
+            <div>
+              <button style="padding: 4px 20px" class="btn btn-primary me-2" onclick="persivApps.getMetadata(${formId})"><span class="me-2">+</span> New Entry</button>
+              <button style="padding: 4px 20px" class="btn btn-secondary" onclick="persivApps.refreshFormAndDisplays(${formId})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-2" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                </svg> Refresh Form
+              </button>
+            </div>
+          </div>
+          <div id="formEntries"></div>
+      `);
+      renderTable(res.columns, res.entries, $('#mainContent #formEntries')[0]);
     });
 }
