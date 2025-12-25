@@ -599,22 +599,22 @@ window.onclick = function(event) {
 persivApps.formElementsHTML = {
   label: (config, formElementIdx) => {
     return `<label for="form_element_${formElementIdx}" class="form-label d-flex justify-content-between">
-              <div>${config.name}${!config.optional ? '<span style="color: red;" class="persivapp-mandatory-field">*</span>' : ''}</div>
-              ${config.min_value_allowed || config.max_value_allowed ? `<div style="color: #aaa">(${config.min_value_allowed ? `Min: ${config.min_value_allowed}` : ''}${config.min_value_allowed && config.max_value_allowed ? ', ' : ''}${config.max_value_allowed ? `Max: ${config.max_value_allowed}` : ''})</div>` : ''}
+              <div class="d-flex">${config.name}${!config.optional ? '<span style="color: red;" class="persivapp-mandatory-field">*</span>' : ''}${config.acceptance_criteria ? `<div class="ms-2" style="color: #aaa;"><small>(${config.acceptance_criteria})</small></div>` : ''}</div>
+              ${config.min_value_allowed || config.max_value_allowed ? `<div style="color: #aaa"> (${config.min_value_allowed ? `Min: ${config.min_value_allowed}` : ''}${config.min_value_allowed && config.max_value_allowed ? ', ' : ''}${config.max_value_allowed ? `Max: ${config.max_value_allowed}` : ''})</div>` : ''}
             </label>`
   },
   date: (config, formElementIdx) => {
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}">
+        <input data-form-element="${formElementIdx}" type="date" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
       </div>`;
   },
   number: (config, formElementIdx) => {
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.max_value_allowed ? `max="${config.max_value_allowed}"` : ''} />
+        <input data-form-element="${formElementIdx}" type="number" class="form-control" id="form_element_${formElementIdx}" ${config.min_value_allowed ? `min="${config.min_value_allowed}"` : ''} ${config.max_value_allowed ? `max="${config.max_value_allowed}"` : ''} ${config.isDisabled && 'disabled'} />
       </div>`;
   },
   radio_button: (config, formElementIdx) => {
@@ -626,7 +626,7 @@ persivApps.formElementsHTML = {
           ${
             allowed_data.map((_allowed_data, _allowed_data_idx) => `
               <div class="form-check me-4 d-flex align-items-center justify-content-center">
-                <input data-form-element="${formElementIdx}" class="form-check-input mb-0" type="radio" name="radioDefault_${formElementIdx}" id="ele_${formElementIdx}_${_allowed_data_idx}" value="${_allowed_data}">
+                <input data-form-element="${formElementIdx}" class="form-check-input mb-0" type="radio" name="radioDefault_${formElementIdx}" id="ele_${formElementIdx}_${_allowed_data_idx}" value="${_allowed_data}" ${config.isDisabled && 'disabled'}>
                 <label class="form-check-label ms-2" for="ele_${formElementIdx}_${_allowed_data_idx}">
                   ${_allowed_data}
                 </label>
@@ -639,14 +639,14 @@ persivApps.formElementsHTML = {
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}">
+        <input data-form-element="${formElementIdx}" type="text" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
       </div>`;
   },
   time: (config, formElementIdx) => {
     return `
       <div class="mb-3">
        ${persivApps.formElementsHTML.label(config, formElementIdx)}
-        <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}">
+        <input data-form-element="${formElementIdx}" type="time" class="form-control" id="form_element_${formElementIdx}" ${config.isDisabled && 'disabled'}>
       </div>`;
   }
 };
@@ -676,9 +676,15 @@ persivApps.buildForm = (formId, formConfig) => {
     `;
   }
   let lastFormAccordion = '';
-  const formHTML = formConfig.map((formElement) => {
+  let lastFormSection = '';
+  const formHTML = formConfig.filter((config) => !config.hide).map((formElement) => {
     const formElementIdx = formElement.id;
     let html = '';
+
+    if (formElement.form_section !== lastFormSection) {
+      lastFormSection = formElement.form_section;
+      html += `<hr /><div class="fw-bold mt-3"><small>${formElement.form_section}</small></div>`
+    }
 
     // Open accordion?
     if (lastFormAccordion !== formElement.accordion && formElement.accordion) {
