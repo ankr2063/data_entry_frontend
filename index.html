@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#2196F3">
+    <meta name="theme-color" content="#f1f1f1">
     <meta name="description" content="Persiv App">
     <title>Persiv App</title>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?0.1">
     <link rel="stylesheet" href="css/style.css">
 
     <!-- Bootstrap  -->
@@ -82,5 +82,31 @@
             </div>
         </div>
     </div>
+
+    <script>
+        let deferredPrompt;
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js', {scope: '.'})
+                .then((reg) => {
+                    // registration worked
+                    //console.log('Registration succeeded. Scope is ' + reg.scope, reg);
+                }).catch((error) => {
+                    // registration failed
+                    //console.log('Registration failed with ' + error);
+                    return;
+                });
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevent the mini-infobar from appearing on mobile
+                e.preventDefault();
+                // Stash the event so it can be triggered later.
+                window.deferredPrompt = e;
+                // Update UI notify the user they can install the PWA
+
+                $('nav .bi.bi-file-arrow-down.navIcon').removeClass('d-none');
+            });
+        }
+    </script>
+
 </body>
 </html>

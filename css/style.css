@@ -136,7 +136,7 @@ nav #report-summary {
 }
 
 body:has(#loginScreen) {
-  background-image: url('../resources/images/background.avif');
+  background-image: url('../resources/images/app/background.avif');
 }
 
 @keyframes backgroundAnimation {
@@ -270,9 +270,9 @@ h1 {
   left: 50%;
   transform: translate(-50%, -50%);
   background: white;
-  padding: 2rem;
+  padding: 16px;
   border-radius: 12px;
-  min-width: 400px;
+  min-width: min(400px, 95vw);
   max-width: 75vw;
   max-height: 80vh;
   overflow-y: auto;
@@ -364,6 +364,7 @@ main #formControls {
   display: flex;
   font-size: 18px;
   margin-bottom: 10px;
+  white-space: nowrap;
 }
 
 main #formControls .title {
@@ -441,3 +442,21 @@ table td {
   margin-bottom: 10px;
 }
 
+
+
+@media (max-width: 1000px) {
+  #sidebar {
+      display: none;
+  }
+
+  #sidebar.show-nav {
+      display: block;
+      position: fixed;
+      height: calc(100% - 70px);
+      z-index: 9999;
+  }
+
+  .hide-on-small-device {
+    display: none;
+  }
+}

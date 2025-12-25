@@ -1,21 +1,29 @@
 {
-  "name": "Data Entry Forms",
-  "short_name": "Forms",
+  "name": "Persiv App",
+  "short_name": "Persiv App",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2196F3",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "theme_color": "#f1f1f1",
+  "orientation": "any",
+   "icons": [
+      {
+          "src": "./resources/images/app/PersivX_icon_192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+      },
+      {
+          "src": "./resources/images/app/PersivX_icon_512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+      },
+      {
+          "src": "./resources/images/app/PersivX_icon_1024.png",
+          "sizes": "1024x1024",
+          "type": "image/png"
+      }
+  ],
+  "categories": ["business", "productivity"],
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "version": "0.0.1"
 }
