@@ -348,6 +348,11 @@ pre {
   overflow: auto;
 }
 
+#metadata hr {
+  color: #aaa;
+  margin-block: 24px;
+}
+
 .accordion-button.collapsed {
   background-color: lightgray;
 }
