@@ -377,6 +377,10 @@ main #formControls {
 main #formControls .title {
   font-size: 16px;
   font-weight: bold;
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
  
 main #formEntries {
