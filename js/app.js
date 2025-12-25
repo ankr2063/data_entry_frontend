@@ -36,7 +36,7 @@ window.onload = (e) => {
 persivApps.initApp = () => {
     $('main').html(`
       <div id="sidebar"></div>
-      <div id="mainContent"><center class="mt-3 d-flex align-items-center justify-content-center"><h4 class="d-flex align-items-baseline">Welcome to <img src="resources/images/app/persivApp.png" class="ms-3" style="max-height: 20px;" alt="PersivX logo"></h4></center></div>
+      <div id="mainContent">${ window.innerWidth <= 1000 ? `<i class="bi bi-list me-2" onclick="$('#sidebar').toggleClass('show-nav')" ></i>` : '' }<center class="mt-3 d-flex align-items-center justify-content-center"><h4 class="d-flex align-items-baseline">Welcome to <img src="resources/images/app/persivApp.png" class="ms-3" style="max-height: 20px;" alt="PersivX logo"></h4></center></div>
     `);
     persivApps.loadForms();
 }
@@ -212,6 +212,7 @@ persivApps.personalLogin = () => {
 
 
 persivApps.showAddForm = () => {
+  $('#sidebar').toggleClass('show-nav');
   document.getElementById('addFormModal').style.display = 'block';
 }
 
@@ -810,6 +811,7 @@ function renderTable(columnMap, rawRows, container) {
 }
 
 persivApps.displayFormEntries = (formId, form_name) => {
+  $('#sidebar').toggleClass('show-nav');
   persivApps.showLoader('Fetching entries...');
   window.callAPI('GET', API_BASE + `/forms/${formId}/entries/`)
     .subscribe((res) => {
@@ -817,15 +819,15 @@ persivApps.displayFormEntries = (formId, form_name) => {
       $('#mainContent').html(`
           <div id="formControls">
             <div class="title">
-              Entries: ${form_name}
+              ${ window.innerWidth <= 1000 ? `<i class="bi bi-list me-2" onclick="$('#sidebar').toggleClass('show-nav')" ></i>` : '' } Entries: ${form_name}
             </div>
             <div>
-              <button style="padding: 4px 20px" class="btn btn-primary me-2" onclick="persivApps.getMetadata(${formId})"><span class="me-2">+</span> New Entry</button>
+              <button style="padding: 4px 20px" class="btn btn-primary me-2" onclick="persivApps.getMetadata(${formId})"><span class="me-2">+</span><span class="hide-on-small-device">New Entry</span></button>
               <button style="padding: 4px 20px" class="btn btn-secondary" onclick="persivApps.refreshFormAndDisplays(${formId})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-2" viewBox="0 0 16 16">
                   <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
                   <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
-                </svg> Refresh Form
+                </svg> <span class="hide-on-small-device">Refresh Form<span>
               </button>
             </div>
           </div>
