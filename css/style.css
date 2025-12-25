@@ -8,7 +8,37 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #f5f5f5;
   min-height: 100vh;
+  position: absolute !important;
   color: #333;
+}
+
+main {
+  display: flex;
+  justify-content: space-between;
+  height: calc(100% - 38px);
+  margin-top: 38px;
+  padding: 15px;
+}
+
+main #sidebar {
+    background: white;
+    border-radius: 5px;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px, rgba(0, 0, 0, 0.1) 0px -4px 16px;
+    height: 100%;
+    margin-right: 10px;
+    min-width: 225px;
+    padding: 5px 10px;
+    width: 15vw;
+}
+
+main #mainContent {
+    background: white;
+    border-radius: 5px;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px, rgba(0, 0, 0, 0.1) 0px -4px 16px;
+    height: 100%;
+    overflow: auto;
+    padding: 5px 15px;
+    width: 100%;
 }
 
 nav {
@@ -55,10 +85,76 @@ nav #report-summary {
   text-align: right;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+#loginContainer {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .1), 0 8px 16px rgba(0, 0, 0, .1);
+  max-width: 90vw;
+  min-height: 200px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: 25px;  
+  width: 400px;
+}
+
+#loginContainer .logo {
+  left: 0;
+  margin: auto;
+  max-width: 100%;
+  max-height: 20px;
+  position: absolute;
+  right: 0;
+}
+
+#loginContainer .heading {
+  color: #094979;
+  font-weight: bold;
+}
+
+#loginContainer label {
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+#loginContainer input {
+  border: thin solid #00000030;
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 5px;
+}
+
+#loginButton {
+  background: #094979;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  height: 35px;
+  width: 100%;
+}
+
+body:has(#loginScreen) {
+  background-image: url('../resources/images/background.avif');
+}
+
+@keyframes backgroundAnimation {
+  0% {
+      background-position: 100% 0;
+  }
+
+  100% {
+      background-position: -100% 0;
+  }
+}
+
+#loginScreen {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
 }
 
 header {
@@ -116,43 +212,6 @@ h1 {
   border-bottom: none;
 }
 
-.btn-primary {
-  background: #4CAF50;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary:hover {
-  background: #45a049;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  margin-left: 0.5rem;
-}
-
-.btn-update {
-  background: #ff9800;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
 .forms-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -160,23 +219,26 @@ h1 {
 }
 
 .form-card {
+  align-items: center;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  transition: all 0.3s;
+  border-bottom: thin solid #00000010;
+  display: flex;
+  line-height: 100%;
+  padding: 8px 2px;
   cursor: pointer;
 }
 
-.form-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+#formsList {
+  margin-top: 8px;
 }
 
 .form-card h3 {
-  color: #2196F3;
-  margin-bottom: 0.5rem;
   font-size: 1.2rem;
+  margin: 0;
+}
+
+.form-card:hover {
+  background-color: #00000010;
 }
 
 .form-card p {
@@ -290,6 +352,38 @@ pre {
   background-color: lightgray;
 }
 
+main #formControls {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 4px;
+  height: 40px;
+  align-items: center;
+  border-bottom: thin solid #00000010;
+  color: #4F4F4F;
+  display: flex;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+main #formControls .title {
+  font-size: 16px;
+  font-weight: bold;
+}
+ 
+main #formEntries {
+  height: calc(100% - 60px);
+  overflow: auto;
+}
+
+table.table thead td {
+  background-color: #00000030;
+}
+
+table td {
+  border: 1px solid #eee;
+  white-space: nowrap !important;
+}
 
 /*  Loader */
 .harbour-loader-container {
