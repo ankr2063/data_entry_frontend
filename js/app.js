@@ -349,7 +349,7 @@ async function updateForm() {
   }
 }
 
-persivApps.getMetadata = async (formId) => {
+persivApps.getMetadata = async (formId, formName) => {
   const modal = document.getElementById('metadataModal');
   const container = document.getElementById('metadata');
   
@@ -360,8 +360,7 @@ persivApps.getMetadata = async (formId) => {
     window.callAPI('GET', `${API_BASE}/forms/${formId}/metadata/entry`)
       .subscribe((response) => {
           const metadata = response;
-          console.log(metadata);
-          persivApps.buildForm(formId, metadata.entry_data.filter(a => a.name && a.ui_form_element));  
+          persivApps.buildForm(formId, formName, metadata.entry_data.filter(a => a.name && a.ui_form_element));  
       });
   } catch (error) {
     container.innerHTML = '<p class="loading">Error loading metadata</p>';
@@ -651,7 +650,7 @@ persivApps.formElementsHTML = {
   }
 };
 
-persivApps.buildForm = (formId, formConfig) => {
+persivApps.buildForm = (formId, formName, formConfig) => {
   let numAccordions = 0;
   const openAccordion = (accordionTitle) => {
     numAccordions += 1;
@@ -710,10 +709,10 @@ persivApps.buildForm = (formId, formConfig) => {
   }).join('');
 
   document.getElementById('metadata').innerHTML = formHTML;
-  document.getElementById('saveFormValues').setAttribute('onclick', `persivApps.saveFormData(${formId})`);
+  document.getElementById('saveFormValues').setAttribute('onclick', `persivApps.saveFormData(${formId}, '${formName}')`);
 }
 
-persivApps.saveFormData = (form_id) => {
+persivApps.saveFormData = (form_id, formName) => {
   const formElements = document.querySelectorAll('#metadata [data-form-element]');
   const form_values = {};
   
@@ -743,6 +742,9 @@ persivApps.saveFormData = (form_id) => {
       persivApps.hideLoader();
       u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
       persivApps.hideModal('metadataModal');
+
+      // Reload saved data
+      persivApps.displayFormEntries(form_id, formName)
     });  
 }
 
@@ -777,43 +779,56 @@ persivApps.hideLoader = () => {
     $('.harbour-loader-container').remove();
 }
 
-function renderTable(columnMap, rawRows, container) {
-  const columns = Object.entries(columnMap)
+persivApps.renderTable = (columnMap, rawRows, container) => {
+  const _columns = Object.entries(columnMap)
     .map(([i, l]) => ({ i: Number(i), l }))
     .sort((a, b) => a.i - b.i);
+  const columns = _columns.map(({ l }) => ({name: `.${l}`}))
 
-  const rows = rawRows.map(r => ({
-    id: r.id,
-    v: JSON.parse(r.values)
-  }));
-
-  const table = document.createElement("table");
-  table.classList = ['table'];
-  table.border = "1";
-
-  // header
-  const thead = table.createTHead();
-  const hrow = thead.insertRow();
-  hrow.insertCell().textContent = " ";
-  hrow.insertCell().textContent = "ID";
-  columns.forEach(c => hrow.insertCell().textContent = c.l);
-
-  // body
-  const tbody = table.createTBody();
-  rows.forEach(r => {
-    const tr = tbody.insertRow();
-    tr.insertCell().innerHTML = `
-    <div style="width: 100px;">
-      <i onclick="persivApps.displayData(${r.id})" class="bi bi-eye me-2"></i>
-      <i onclick="persivApps.displayData(${r.id}, true)" class="bi bi-printer me-2"></i>
-    </div>`;
-    tr.insertCell().textContent = r.id;
-    columns.forEach(c => {
-      tr.insertCell().textContent = r.v[c.i] ?? "";
-    });
+  const rows = rawRows.map(r => {
+      const rowValues = JSON.parse(r.values);
+      const row = _columns.map(({ i }) => rowValues[i]);
+      return row;
   });
 
-  container.appendChild(table);
+  // Clean up soon.. these steps will be added directly to PersivX.js
+  const config = persivx.getNewChartConfigurations(true);
+  const vizId = config.viz.id;
+  const allDashboardHTML = `
+      <div class="h-100">
+          <div class="chart-container harbour-ui-visualization" id="${vizId}">
+              <div class="chart">
+              <div class="chartContainer">
+                  <div class="chart"></div>
+              </div>
+              </div>
+          </div>
+      </div>`;
+
+  $('#formEntries').html(allDashboardHTML);
+  const currentViz = persivx.harbourUIVisualizations[vizId];
+  currentViz.queryResult = {
+    headers_viz: columns
+  };
+  const _result = {
+      columnDetails: columns,
+      vizConfig: {
+        drill: {
+          toIndex: 0
+        },
+        config: {
+          yAxis: columns.map((cd) => ({ 'attribute': cd['name'].slice(1), 'object': '', chartConfig: { valueConfig: { minColWidth: 100, searchBar: true } } }))
+        }
+      },
+      visualization: {}
+  };
+  const series = rows;
+
+  setTimeout(() => {
+      persivx.buildTableViz(vizId, `.chart-container#${vizId} .chart`, series, _result);
+      $(`#${vizId} .table.table-viz`).css('height', 'calc(100%)');
+      $(`#${vizId} .table.table-viz .body-container`).css('height', 'calc(100% - 30px)');
+  }, 400);
 }
 
 persivApps.displayFormEntries = (formId, form_name) => {
@@ -828,7 +843,7 @@ persivApps.displayFormEntries = (formId, form_name) => {
               ${ window.innerWidth <= 1000 ? `<i class="bi bi-list me-2" onclick="$('#sidebar').toggleClass('show-nav')" ></i>` : '' } Entries: ${form_name}
             </div>
             <div>
-              <button style="padding: 4px 20px" class="btn btn-primary me-2" onclick="persivApps.getMetadata(${formId})"><span class="me-2">+</span><span class="hide-on-small-device">New Entry</span></button>
+              <button style="padding: 4px 20px" class="btn btn-primary me-2" onclick="persivApps.getMetadata(${formId}, '${formName}')"><span class="me-2">+</span><span class="hide-on-small-device">New Entry</span></button>
               <button style="padding: 4px 20px" class="btn btn-secondary" onclick="persivApps.refreshFormAndDisplays(${formId})">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-2" viewBox="0 0 16 16">
                   <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
@@ -839,6 +854,6 @@ persivApps.displayFormEntries = (formId, form_name) => {
           </div>
           <div id="formEntries"></div>
       `);
-      renderTable(res.columns, res.entries, $('#mainContent #formEntries')[0]);
+      persivApps.renderTable(res.columns, res.entries, '#mainContent #formEntries');
     });
 }

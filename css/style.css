@@ -226,15 +226,17 @@ h1 {
   line-height: 100%;
   padding: 8px 2px;
   cursor: pointer;
+  height: 45px;
 }
 
 #formsList {
   margin-top: 8px;
 }
 
-.form-card h3 {
-  font-size: 1.2rem;
-  margin: 0;
+.form-card span {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .form-card:hover {
