@@ -1,7 +1,8 @@
 {
   "name": "Persiv App",
   "short_name": "Persiv App",
-  "start_url": "/",
+  "start_url": "./",
+  "id": "/persivapps/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#f1f1f1",
@@ -25,5 +26,5 @@
   ],
   "categories": ["business", "productivity"],
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "version": "0.0.1"
+  "version": "0.0.2"
 }
