@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = window.location.href.includes('http://localhost') ? 'http://localhost:8000/api' : (window.location.protocol + '//' + window.location.host + '/persivapps/service/');;
 let allForms = [];
 let selectedFormId = null;
 const persivApps = {};
@@ -32,8 +32,6 @@ window.onload = (e) => {
     } else {
         persivApps.showLoginScreen();
     }
-    const loadJSFiles = ['/customizations/solex/forms.js'];
-    persivApps.dynamicallyLoadJSFiles(loadJSFiles);
 }
 
 persivApps.initApp = () => {
@@ -364,6 +362,9 @@ persivApps.getMetadata = async (formId, formName) => {
     window.callAPI('GET', `${API_BASE}/forms/${formId}/metadata/entry`)
       .subscribe((response) => {
           const metadata = response;
+          const loadJSFiles = response.form.custom_scripts;
+          persivApps.dynamicallyLoadJSFiles(loadJSFiles);
+
           persivApps.buildForm(formId, formName, metadata.entry_data.filter(a => a.name && a.ui_form_element));  
       });
   } catch (error) {
