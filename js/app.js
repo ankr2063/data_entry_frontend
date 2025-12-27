@@ -753,11 +753,25 @@ persivApps.saveFormData = (form_id, formName) => {
   }
 
   persivApps.showLoader('Saving form');
-  window.callAPI('POST', API_BASE + '/forms/data/save/', { form_id, form_values: JSON.stringify(form_values) })
+  
+  // Include form_data_entry_id if adding observation to existing entry
+  const saveData = { 
+    form_id, 
+    form_values: JSON.stringify(form_values)
+  };
+  
+  if (persivApps.currentFormDataEntryId) {
+    saveData.form_data_entry_id = persivApps.currentFormDataEntryId;
+  }
+  
+  window.callAPI('POST', API_BASE + '/forms/data/save/', saveData)
     .subscribe((res) => {
       persivApps.hideLoader();
       u.toast.showSuccess({ msg: res.message, direction: 'topRight' });
       persivApps.hideModal('metadataModal');
+
+      // Clear the form data entry ID
+      persivApps.currentFormDataEntryId = null;
 
       // Reload saved data
       persivApps.displayFormEntries(form_id, formName)
@@ -803,10 +817,32 @@ persivApps.renderTable = (columnMap, rawRows, container) => {
     .sort((a, b) => a.i - b.i);
   const columns = [{name: '.Action'}, ..._columns.map(({ l }) => ({name: `.${l}`}))]
 
-  const rows = rawRows.map(r => {
-      const rowValues = JSON.parse(r.values);
-      const row = [`<div><i onclick='persivApps.displayData(${r.id})' class='bi bi-eye me-2'></i><i onclick='persivApps.displayData(${r.id}, true)' class='bi bi-printer me-2'></i></div>`, ..._columns.map(({ i }) => rowValues[i])];
-      return row;
+  // Group observations by form_data_entry_id
+  const groupedEntries = {};
+  rawRows.sort((a, b) => a.id - b.id).forEach(r => {
+    const entryId = r.form_data_entry_id;
+    if (!groupedEntries[entryId]) {
+      groupedEntries[entryId] = [];
+    }
+    groupedEntries[entryId].push(r);
+  });
+
+  const rows = Object.entries(groupedEntries).map(([entryId, observations]) => {
+    const mainObservation = observations[0];
+    const rowValues = JSON.parse(mainObservation.values);
+    const hasMultipleObs = observations.length > 1;
+    
+    const actionButtons = `
+      <div>
+        <i onclick='persivApps.displayData(${mainObservation.id})' class='bi bi-eye me-2' title='View'></i>
+        <i onclick='persivApps.displayData(${mainObservation.id}, true)' class='bi bi-printer me-2' title='Print'></i>
+        <i onclick='persivApps.addObservation(${entryId})' class='bi bi-plus-circle me-2' title='Add Observation'></i>
+        ${hasMultipleObs ? `<i onclick='persivApps.toggleObservations(${entryId})' class='bi bi-chevron-down expand-arrow' id='arrow-${entryId}' title='${observations.length} observations'></i>` : ''}
+      </div>
+    `;
+    
+    const row = [actionButtons, ..._columns.map(({ i }) => rowValues[i] || '')];
+    return row;
   });
 
   // Clean up soon.. these steps will be added directly to PersivX.js
@@ -846,11 +882,65 @@ persivApps.renderTable = (columnMap, rawRows, container) => {
       persivx.buildTableViz(vizId, `.chart-container#${vizId} .chart`, series, _result);
       $(`#${vizId} .table.table-viz`).css('height', 'calc(100%)');
       $(`#${vizId} .table.table-viz .body-container`).css('height', 'calc(100% - 30px)');
+      // Store grouped data and column map for expand functionality
+      window.groupedObservations = groupedEntries;
+      window.currentColumnMap = columnMap;
   }, 400);
+}
+
+persivApps.addObservation = (formDataEntryId) => {
+  const formId = persivApps.currentFormId;
+  const formName = persivApps.currentFormName;
+  
+  // Store the form data entry ID for use when saving
+  persivApps.currentFormDataEntryId = formDataEntryId;
+  
+  persivApps.getMetadata(formId, formName);
+}
+
+persivApps.toggleObservations = (entryId) => {
+  const arrow = $(`#arrow-${entryId}`);
+  const isExpanded = arrow.hasClass('bi-chevron-up');
+  
+  if (isExpanded) {
+    // Collapse - remove expanded rows
+    $(`.observation-row-${entryId}`).remove();
+    arrow.removeClass('bi-chevron-up').addClass('bi-chevron-down');
+  } else {
+    // Expand - add observation rows
+    const observations = window.groupedObservations[entryId];
+    const mainRow = arrow.closest('tr');
+    
+    observations.slice(1).forEach((obs, index) => {
+      const rowValues = JSON.parse(obs.values);
+      const obsRow = $('<tr>').addClass(`observation-row-${entryId}`).css('background-color', '#f8f9fa');
+      
+      // Add action column with indentation
+      obsRow.append(`<td style="padding-left: 30px;"><i onclick='persivApps.displayData(${obs.id})' class='bi bi-eye me-2' title='View'></i><i onclick='persivApps.displayData(${obs.id}, true)' class='bi bi-printer me-2' title='Print'></i></td>`);
+      
+      // Add data columns from _columns order
+      const _columns = Object.entries(window.currentColumnMap)
+        .map(([i, l]) => ({ i: Number(i), l }))
+        .sort((a, b) => a.i - b.i);
+      
+      _columns.forEach(({ i }) => {
+        obsRow.append(`<td style="padding-left: 20px;">${rowValues[i] || ''}</td>`);
+      });
+      
+      mainRow.after(obsRow);
+    });
+    
+    arrow.removeClass('bi-chevron-down').addClass('bi-chevron-up');
+  }
 }
 
 persivApps.displayFormEntries = (formId, form_name) => {
   $('#sidebar').toggleClass('show-nav');
+  
+  // Store current form info for adding observations
+  persivApps.currentFormId = formId;
+  persivApps.currentFormName = form_name;
+  
   persivApps.showLoader('Fetching entries...');
   window.callAPI('GET', API_BASE + `/forms/${formId}/entries/`)
     .subscribe((res) => {
